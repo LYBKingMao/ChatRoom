@@ -13,29 +13,28 @@ public class ChatClient extends Thread{
         }
     }
 
-    @Override
-    public void run() {
-        super.run();
-        try {
-            while(true){
-                new receiveMsgThread().start();
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
-                PrintStream printStream = new PrintStream(socket.getOutputStream());
-                String line = bufferedReader.readLine();
-                printStream.println(line);
-                if("over".equals(line)){
-                    break;
+    private static class sendThread implements Runnable{
+        @Override
+        public void run() {
+            try {
+                while(true){
+                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
+                    PrintStream printStream = new PrintStream(socket.getOutputStream());
+                    String line = bufferedReader.readLine();
+                    printStream.println(line);
+                    if("over".equals(line)){
+                        break;
+                    }
                 }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
-    static class receiveMsgThread extends Thread{
+    private static class readThread implements Runnable{
         @Override
         public void run() {
-            super.run();
             try {
                 while(true){
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -53,6 +52,7 @@ public class ChatClient extends Thread{
 
     public static void main(String[] args) {
         ChatClient chatClient = new ChatClient();
-        chatClient.start();
+        new Thread(new readThread()).start();
+        new Thread(new sendThread()).start();
     }
 }
