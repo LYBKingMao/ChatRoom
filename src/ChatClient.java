@@ -23,6 +23,7 @@ public class ChatClient extends Thread{
                     String line = bufferedReader.readLine();
                     printStream.println(line);
                     if("over".equals(line)){
+                        socket.close();
                         break;
                     }
                 }
@@ -51,7 +52,6 @@ public class ChatClient extends Thread{
     }
 
     public static void main(String[] args) {
-        ChatClient chatClient = new ChatClient();
         new Thread(new readThread()).start();
         new Thread(new sendThread()).start();
     }
