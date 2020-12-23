@@ -4,6 +4,8 @@ import java.net.Socket;
 
 public class ChatClient extends Thread{
     static Socket socket;
+    static boolean nameReceived = false;
+    static int number;
 
     static {
         try {
@@ -21,8 +23,8 @@ public class ChatClient extends Thread{
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
                     PrintStream printStream = new PrintStream(socket.getOutputStream());
                     String line = bufferedReader.readLine();
-                    printStream.println(line);
-                    if("over".equals(line)){
+                    printStream.println(number + line);
+                    if((number+"over").equals(line)){
                         socket.close();
                         break;
                     }
@@ -36,13 +38,26 @@ public class ChatClient extends Thread{
     private static class readThread implements Runnable{
         @Override
         public void run() {
+
+            // 接收客户端编号
+            if(!nameReceived){
+                try {
+                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    String line = bufferedReader.readLine();
+                    if(line.length() != 0 && line != null){
+                        number = Integer.parseInt(line.split("")[0]);
+                        nameReceived = true;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            // 接收服务器消息
             try {
                 while(true){
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     String line = bufferedReader.readLine();
-                    if (line == null || line.length() == 0 || "over".equals(line)){
-                        break;
-                    }
                     System.out.println("服务器说：" + line);
                 }
             } catch (IOException e) {
