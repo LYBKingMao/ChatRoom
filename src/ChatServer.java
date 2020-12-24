@@ -3,8 +3,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 
-//TODO: 后加入的客户端收不到服务器状态消息
-//TODO: 客户端互相私聊/服务器私聊转发
 public class ChatServer{
 
     private static Map<Integer, Socket> treeMap = new TreeMap<>(new Comparator<Integer>() {
@@ -16,7 +14,6 @@ public class ChatServer{
     private static BufferedReader inputReader = new BufferedReader(new InputStreamReader(System.in));
     private static int number = 0;
     private static boolean sendCreated = false;
-    private static boolean monitorCreated = false;
 
     private static class readThread implements Runnable{
         private Socket socket;
@@ -39,7 +36,7 @@ public class ChatServer{
                     for (Map.Entry<Integer, Socket> entry: treeMap.entrySet()){
                         if(entry.getKey() == number){
                             PrintStream printStream = getPrintStream(entry.getValue());
-                            printStream.println(number);
+                            printStream.println("服务器说：" + number);
                         }
                     }
                 }
@@ -53,7 +50,6 @@ public class ChatServer{
                     new Thread(new sendThread(socket)).start();
                     new Thread(new userMonitor()).start();
                     sendCreated = true;
-                    monitorCreated = true;
                 }
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -63,8 +59,8 @@ public class ChatServer{
                     String line = bufferedReader.readLine();
 
                     // 处理无意义输入
-                    if(line.length() == 1){
-                        printStream.println("无意义输入，请检查");
+                    if(line == null || line.length() == 1){
+                        printStream.println("服务器说：无意义输入，请检查");
                         System.out.println("客户端" + Integer.parseInt(line.split("")[0])+ "发送了一条空消息");
                         continue;
                     }
@@ -78,11 +74,21 @@ public class ChatServer{
                         }
                         System.out.println("客户端" + waitToRemove + "离线");
                         System.out.println("目前在线人数: " + treeMap.size());
-                        printStream.println("再见");
+                        printStream.println("服务器说：再见");
 
                         break;
                     }
-                    System.out.println("客户端" + Integer.parseInt(line.split("")[0]) + "说：" + line.substring(1));
+
+                    // 转发客户端私聊
+                    if("p".equals(line.split("")[1])){
+                        int msgTo = Integer.parseInt(line.split("")[2]);
+                        int origin = Integer.parseInt(line.split("")[0]);
+                        String msg = line.substring(3);
+                        sendToPrivate(String.valueOf(origin), msgTo, msg);
+                    }else{
+                        // 发送给服务器自己的消息
+                        System.out.println("客户端" + Integer.parseInt(line.split("")[0]) + "说：" + line.substring(1));
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -125,7 +131,9 @@ public class ChatServer{
                             String msg1 = readfromBuffer();
                             if(msg1 != null && msg1.length() != 0){
                                 if(treeMap.containsKey(msgTo)){
-                                    sendToPrivate(msgTo, msg1);
+                                    sendToPrivate(null, msgTo, msg1);
+                                }else{
+                                    System.out.println("客户端已下线或不存在");
                                 }
                             }
                             continue;
@@ -135,20 +143,26 @@ public class ChatServer{
         }
     }
 
-    // 用户数量监视及广播通知线程（时间到了过后用户数量没有变化不通知）
+    // 用户数量监视及广播通知线程
     private static class userMonitor implements Runnable{
         int initialUser = 0;
         @Override
         public void run() {
             while (true){
-                if(人数没有变化){
+                if(number == initialUser){
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }else{
+                    initialUser = number;
                     if(!treeMap.isEmpty()){
+                        Set<Integer> set = treeMap.keySet();
+                        StringBuilder stringBuilder = new StringBuilder();
+                        for (Integer key : set){
+                            stringBuilder.append(key + " ");
+                        }
                         for (Map.Entry<Integer, Socket> entry: treeMap.entrySet()){
                             PrintStream printStream = null;
                             try {
@@ -157,7 +171,7 @@ public class ChatServer{
                                 e.printStackTrace();
                             }
                             assert printStream != null;
-                            printStream.println("聊天室人数发生变化，目前在线人数: " + treeMap.size());
+                            printStream.println("服务器说：聊天室人数发生变化，目前在线客户端: " + stringBuilder.toString());
                         }
                     }
                 }
@@ -171,7 +185,7 @@ public class ChatServer{
             for (Map.Entry<Integer, Socket> entry: treeMap.entrySet()){
                 try {
                     PrintStream printStream = new PrintStream(entry.getValue().getOutputStream());
-                    printStream.println(msg);
+                    printStream.println("服务器说: " + msg);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -179,14 +193,18 @@ public class ChatServer{
         }
     }
 
-    // 服务器私聊消息
-    private static void sendToPrivate(int msgTo, String msg){
+    // 私聊相关
+    private static void sendToPrivate(String origin, int msgTo, String msg){
         if(!treeMap.isEmpty()){
             for (Map.Entry<Integer, Socket> entry: treeMap.entrySet()){
                 if(msgTo == entry.getKey()){
                     try {
                         PrintStream printStream = new PrintStream(entry.getValue().getOutputStream());
-                        printStream.println(msg);
+                        if(origin == null){
+                            printStream.println("服务器说：" + msg);
+                        }else{
+                            printStream.println("客户端" + origin + "对你说:" + msg);
+                        }
                     }catch (IOException e){
                         e.printStackTrace();
                     }

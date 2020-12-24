@@ -22,10 +22,11 @@ public class ChatClient extends Thread{
                 while(true){
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
                     PrintStream printStream = new PrintStream(socket.getOutputStream());
+                    System.out.println("请输入要发送的信息，如需私聊，请以字母p开头后跟需要私聊的客户端编号：");
                     String line = bufferedReader.readLine();
                     printStream.println(number + line);
-                    if((number+"over").equals(line)){
-                        socket.close();
+                    if(line.length() >= 4 && "over".equals(line.substring(line.length() - 4))){
+                        System.exit(0);
                         break;
                     }
                 }
@@ -44,8 +45,8 @@ public class ChatClient extends Thread{
                 try {
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     String line = bufferedReader.readLine();
-                    if(line.length() != 0 && line != null){
-                        number = Integer.parseInt(line.split("")[0]);
+                    if(line.length() >= 5){
+                        number = Integer.parseInt(line.split("")[5]);
                         nameReceived = true;
                     }
                 } catch (IOException e) {
@@ -53,12 +54,16 @@ public class ChatClient extends Thread{
                 }
             }
 
-            // 接收服务器消息
+            // 接收服务器和私聊消息
             try {
                 while(true){
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     String line = bufferedReader.readLine();
-                    System.out.println("服务器说：" + line);
+                    if("服务器".equals(line.substring(0,4))){
+                        System.out.println(line.substring(0,6) + line.substring(6));
+                    }else{
+                        System.out.println(line.substring(0,9) + line.substring(9));
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
